@@ -1,0 +1,207 @@
+# Cada integrante pone su propia org de Serverless (como ms-calificaciones).
+# org: tu-org
+service: nubeduca-ms-notificaciones
+
+provider:
+  name: aws
+  runtime: python3.13
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 20
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+  environment:
+    TABLA_NOTIFICACIONES: ${sls:stage}-t_notificaciones
+    TOPIC_EMAIL: !Ref TopicEmail
+    # "mock" mientras AUTH-01 no entregue Cognito; "cognito" con el authorizer de API Gateway.
+    AUTH_MODE: ${param:authMode, 'mock'}
+    FRONTEND_URL: ${param:frontendUrl, 'https://main.d122p0gongncde.amplifyapp.com'}
+
+package:
+  patterns:
+    - '!tests/**'
+    - '!scripts/**'
+    - '!postman/**'
+    - '!.venv/**'
+    - '!poblar_datos.py'
+    - '!requirements-dev.txt'
+
+functions:
+  salud:
+    handler: api/salud.lambda_handler
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  preferenciasLeer:
+    handler: api/preferencias.lambda_handler
+    events:
+      - http:
+          path: /preferences/me
+          method: get
+          cors: true
+
+  preferenciasGuardar:
+    handler: api/preferencias.lambda_handler
+    events:
+      - http:
+          path: /preferences/me
+          method: put
+          cors: true
+
+  avisos:
+    handler: api/avisos.lambda_handler
+    events:
+      - http:
+          path: /notifications/me
+          method: get
+          cors: true
+
+  # Regla del bus lms → cola → este Lambda.
+  eventosBus:
+    handler: consumidores/eventos_bus.lambda_handler
+    events:
+      - sqs:
+          arn: !GetAtt ColaEventos.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+  # Tópico SNS FIFO de notas → cola FIFO → este Lambda (en orden por curso).
+  notasFifo:
+    handler: consumidores/notas_fifo.lambda_handler
+    events:
+      - sqs:
+          arn: !GetAtt ColaNotas.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    TablaNotificaciones:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${sls:stage}-t_notificaciones
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: tenant_id
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: tenant_id
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+    # Email: SNS con suscripciones filtradas por userId (scripts/suscribir_email.sh).
+    TopicEmail:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: nubeduca-${sls:stage}-notificaciones
+
+    # --- Eventos del bus lms ----------------------------------------------------
+    ColaEventosDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nubeduca-${sls:stage}-notificaciones-eventos-dlq
+        MessageRetentionPeriod: 1209600
+
+    ColaEventos:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nubeduca-${sls:stage}-notificaciones-eventos
+        VisibilityTimeout: 120
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaEventosDLQ.Arn
+          maxReceiveCount: 5
+
+    # Una regla por consumidor (ARQ-01). grade.posted NO va aquí: llega por la cola FIFO.
+    ReglaEventos:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: nubeduca-${sls:stage}-notificaciones
+        EventBusName: lms
+        EventPattern:
+          source:
+            - lms.users
+            - lms.courses
+            - lms.content
+            - lms.assessment
+          detail-type:
+            - lms.users.user.provisioned.v1
+            - lms.courses.enrollment.created.v1
+            - lms.courses.enrollment.dropped.v1
+            - lms.courses.course.published.v1
+            - lms.courses.announcement.published.v1
+            - lms.content.module.published.v1
+            - lms.assessment.assignment.published.v1
+            - lms.assessment.submission.submitted.v1
+        Targets:
+          - Id: cola-notificaciones
+            Arn: !GetAtt ColaEventos.Arn
+
+    PoliticaColaEventos:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ColaEventos
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal: { Service: events.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt ColaEventos.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !GetAtt ReglaEventos.Arn
+
+    # --- Notas publicadas (SNS FIFO de ms-calificaciones) -------------------------
+    ColaNotasDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nubeduca-${sls:stage}-notificaciones-notas-dlq.fifo
+        FifoQueue: true
+        MessageRetentionPeriod: 1209600
+
+    ColaNotas:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nubeduca-${sls:stage}-notificaciones-notas.fifo
+        FifoQueue: true
+        VisibilityTimeout: 120
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaNotasDLQ.Arn
+          maxReceiveCount: 5
+
+    SuscripcionNotas:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: arn:aws:sns:${aws:region}:${aws:accountId}:${sls:stage}-notas.fifo
+        Protocol: sqs
+        Endpoint: !GetAtt ColaNotas.Arn
+        RawMessageDelivery: true
+
+    PoliticaColaNotas:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ColaNotas
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal: { Service: sns.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt ColaNotas.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: arn:aws:sns:${aws:region}:${aws:accountId}:${sls:stage}-notas.fifo
+
+  Outputs:
+    TopicEmailArn:
+      Value: !Ref TopicEmail

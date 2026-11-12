@@ -1,0 +1,41 @@
+{
+  "info": {
+    "name": "Nubeduca · ms-notificaciones",
+    "description": "ENG-01. En modo mock el token es: mock.<tenant>.<ROL>.<userId>. Con Cognito, el ID token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://xxxx.execute-api.us-east-1.amazonaws.com/dev" },
+    { "key": "token", "value": "mock.utec.STUDENT.11111111-1111-4111-8111-111111111111" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Mis avisos",
+      "request": { "method": "GET", "url": "{{baseUrl}}/notifications/me?limit=20" }
+    },
+    {
+      "name": "Mis preferencias",
+      "request": { "method": "GET", "url": "{{baseUrl}}/preferences/me" }
+    },
+    {
+      "name": "Guardar preferencias",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/preferences/me",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": {\n    \"coursePublished\": true,\n    \"announcements\": false,\n    \"modules\": true,\n    \"assignments\": true,\n    \"submissionReceipts\": true,\n    \"grades\": true\n  }\n}"
+        }
+      }
+    }
+  ]
+}
