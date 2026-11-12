@@ -154,7 +154,7 @@ Colección de Postman: `postman/nubeduca-ms-notificaciones.postman_collection.js
 # 1. Solo en tu cuenta de pruebas: crea el bus lms y el tópico dev-notas.fifo
 ./scripts/crear_recursos_dev.sh dev
 
-# 2. Pon tu org de Serverless en serverless.yml (org: ...) y despliega
+# 2. Verifica la org de Serverless en serverless.yml (org: guillermoheredia); cámbiala si usas otra cuenta
 sls deploy --stage dev
 #   con Cognito:            sls deploy --param="authMode=cognito"
 #   otra URL del frontend:  sls deploy --param="frontendUrl=https://..."

@@ -1,5 +1,5 @@
-# Cada integrante pone su propia org de Serverless (como ms-calificaciones).
-# org: tu-org
+# Cada integrante usa su propia org de Serverless (como ms-calificaciones); cámbiala si despliegas en otra cuenta.
+org: guillermoheredia
 service: nubeduca-ms-notificaciones
 
 provider:
