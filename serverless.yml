@@ -208,6 +208,16 @@ resources:
                 ArnEquals:
                   aws:SourceArn: arn:aws:sns:${aws:region}:${aws:accountId}:${self:custom.notasTopic}
 
+    # URL de la API en SSM: PLT-06 (nubeduca-backend/infra/frontend) la pasa al frontend como VITE_API_NOTIFICACIONES.
+    ParametroUrlApi:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /nubeduca/${sls:stage}/api/notificaciones/url
+        Type: String
+        Value: !Join ['', ['https://', !Ref ApiGatewayRestApi, '.execute-api.${aws:region}.amazonaws.com/${sls:stage}']]
+
   Outputs:
     TopicEmailArn:
       Value: !Ref TopicEmail
+    ApiUrl:
+      Value: !GetAtt ParametroUrlApi.Value

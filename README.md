@@ -160,6 +160,8 @@ sls deploy --stage dev
 #   otra URL del frontend:  sls deploy --param="frontendUrl=https://..."
 #   nombres viejos (bus lms): sls deploy --param="busName=lms" --param="notasTopic=dev-notas.fifo"
 
+#   publica la URL de la API en SSM: /nubeduca/<stage>/api/notificaciones/url (la usa PLT-06 para el frontend)
+
 # 3. Suscribe tu correo para recibir los avisos de un usuario
 ./scripts/suscribir_email.sh tu@correo.com <userId> dev
 ```
