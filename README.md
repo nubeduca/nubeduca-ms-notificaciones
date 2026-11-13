@@ -10,8 +10,8 @@ Microservicio de **avisos** de Nubeduca (tarea **ENG-01**). Consume eventos de l
 
 ```mermaid
 flowchart LR
-    BUS{{"EventBridge · bus lms"}} -- "regla nubeduca-&lt;stage&gt;-notificaciones" --> Q1["SQS notificaciones-eventos<br/>(DLQ ×5)"] --> L1["λ eventosBus"]
-    FIFO{{"SNS FIFO &lt;stage&gt;-notas.fifo"}} --> Q2["SQS FIFO notificaciones-notas.fifo<br/>(DLQ ×5)"] --> L2["λ notasFifo"]
+    BUS{{"EventBridge · bus lms-&lt;stage&gt;"}} -- "regla nubeduca-&lt;stage&gt;-notificaciones" --> Q1["SQS notificaciones-eventos<br/>(DLQ ×5)"] --> L1["λ eventosBus"]
+    FIFO{{"SNS FIFO nubeduca-&lt;stage&gt;-notas.fifo"}} --> Q2["SQS FIFO notificaciones-notas.fifo<br/>(DLQ ×5)"] --> L2["λ notasFifo"]
     L1 & L2 --> DB[("DynamoDB<br/>&lt;stage&gt;-t_notificaciones")]
     L1 & L2 --> MAIL["SNS nubeduca-&lt;stage&gt;-notificaciones<br/>→ email filtrado por userId"]
     FE["Frontend"] --> API["API Gateway"] --> L3["λ avisos / preferencias"] --> DB
@@ -151,19 +151,22 @@ Colección de Postman: `postman/nubeduca-ms-notificaciones.postman_collection.js
 ## Desplegar
 
 ```bash
-# 1. Solo en tu cuenta de pruebas: crea el bus lms y el tópico dev-notas.fifo
+# 1. Solo en tu cuenta de pruebas: crea el bus lms-dev y el tópico nubeduca-dev-notas.fifo
 ./scripts/crear_recursos_dev.sh dev
 
 # 2. Verifica la org de Serverless en serverless.yml (org: guillermoheredia); cámbiala si usas otra cuenta
 sls deploy --stage dev
 #   con Cognito:            sls deploy --param="authMode=cognito"
 #   otra URL del frontend:  sls deploy --param="frontendUrl=https://..."
+#   nombres viejos (bus lms): sls deploy --param="busName=lms" --param="notasTopic=dev-notas.fifo"
 
 # 3. Suscribe tu correo para recibir los avisos de un usuario
 ./scripts/suscribir_email.sh tu@correo.com <userId> dev
 ```
 
-En la cuenta del despliegue final (REL-01), el bus `lms` lo crea PLT-04 y el tópico `<stage>-notas.fifo` lo crea ms-calificaciones. No se corre el paso 1.
+Los nombres siguen a PLT-04 (`nubeduca-infra/bus`): bus `lms-<stage>` y tópico `nubeduca-<stage>-notas.fifo`. En la cuenta del despliegue final (REL-01) los crea ese stack, así que no se corre el paso 1.
+
+> `nubeduca-contratos` todavía dice bus `lms` y tópico `<stage>-notas.fifo`. Si el equipo vuelve a esos nombres, basta con pasar los parámetros `busName` y `notasTopic`.
 
 ## Datos de prueba (30.000 registros)
 
@@ -197,7 +200,7 @@ Las pruebas usan `moto` (no necesitan AWS) y cubren:
 
 ```bash
 export AWS_ENDPOINT_URL=http://localhost:4566 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1
-./scripts/publicar_evento.sh ../nubeduca-contratos/eventos/ejemplos/lms.courses.course.published.v1.json
+BUS=lms ./scripts/publicar_evento.sh ../nubeduca-contratos/eventos/ejemplos/lms.courses.course.published.v1.json
 ```
 
 ## Estructura

@@ -1,4 +1,4 @@
-"""Lambda: cola FIFO nubeduca-${stage}-notificaciones-notas.fifo (tópico ${stage}-notas.fifo)."""
+"""Lambda: cola FIFO nubeduca-${stage}-notificaciones-notas.fifo (tópico nubeduca-${stage}-notas.fifo de PLT-04)."""
 
 from consumidores.reacciones import REACCIONES_FIFO
 from lib.eventos import leer_mensaje, manejar_lote

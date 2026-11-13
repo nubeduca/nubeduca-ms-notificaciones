@@ -18,6 +18,12 @@ provider:
     AUTH_MODE: ${param:authMode, 'mock'}
     FRONTEND_URL: ${param:frontendUrl, 'https://main.d122p0gongncde.amplifyapp.com'}
 
+# Nombres de PLT-04 (nubeduca-infra/bus): bus "lms-<stage>" y tópico "nubeduca-<stage>-notas.fifo".
+# Con los nombres viejos (bus "lms", tópico "<stage>-notas.fifo"): sls deploy --param="busName=lms" --param="notasTopic=dev-notas.fifo"
+custom:
+  busName: ${param:busName, 'lms-${sls:stage}'}
+  notasTopic: ${param:notasTopic, 'nubeduca-${sls:stage}-notas.fifo'}
+
 package:
   patterns:
     - '!tests/**'
@@ -126,7 +132,7 @@ resources:
       Type: AWS::Events::Rule
       Properties:
         Name: nubeduca-${sls:stage}-notificaciones
-        EventBusName: lms
+        EventBusName: ${self:custom.busName}
         EventPattern:
           source:
             - lms.users
@@ -182,7 +188,7 @@ resources:
     SuscripcionNotas:
       Type: AWS::SNS::Subscription
       Properties:
-        TopicArn: arn:aws:sns:${aws:region}:${aws:accountId}:${sls:stage}-notas.fifo
+        TopicArn: arn:aws:sns:${aws:region}:${aws:accountId}:${self:custom.notasTopic}
         Protocol: sqs
         Endpoint: !GetAtt ColaNotas.Arn
         RawMessageDelivery: true
@@ -200,7 +206,7 @@ resources:
               Resource: !GetAtt ColaNotas.Arn
               Condition:
                 ArnEquals:
-                  aws:SourceArn: arn:aws:sns:${aws:region}:${aws:accountId}:${sls:stage}-notas.fifo
+                  aws:SourceArn: arn:aws:sns:${aws:region}:${aws:accountId}:${self:custom.notasTopic}
 
   Outputs:
     TopicEmailArn:
