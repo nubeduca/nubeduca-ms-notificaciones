@@ -154,7 +154,7 @@ Colección de Postman: `postman/nubeduca-ms-notificaciones.postman_collection.js
 # 1. Solo en tu cuenta de pruebas: crea el bus lms-dev y el tópico nubeduca-dev-notas.fifo
 ./scripts/crear_recursos_dev.sh dev
 
-# 2. Verifica la org de Serverless en serverless.yml (org: guillermoheredia); cámbiala si usas otra cuenta
+# 2. Sin org fija: Serverless v4 usa la de SERVERLESS_ACCESS_KEY o la de `serverless login`
 sls deploy --stage dev
 #   con Cognito:            sls deploy --param="authMode=cognito"
 #   otra URL del frontend:  sls deploy --param="frontendUrl=https://..."
@@ -178,7 +178,7 @@ python poblar_datos.py --stage dev                     # AWS
 python poblar_datos.py --endpoint-url http://localhost:4566 --tabla local-t_notificaciones   # LocalStack
 ```
 
-Carga 10.000 ítems por tenant (`utec`, `upc`, `pucp`): 1.000 preferencias y 9.000 avisos.
+Carga UTEC 15.000, UPC 10.000 y PUCP 5.000 ítems (`REPARTO`). En cada tenant, el 10 % son preferencias (90 % alumnos, 10 % docentes) y el 90 % son avisos en las bandejas de los alumnos. Por ejemplo, UTEC tiene 1.500 preferencias y 13.500 avisos.
 - Los ids son deterministas, así que correrlo dos veces no duplica nada.
 - No escribe ítems `INBOX` ni `EVENTO#`, así que no dispara eventos ni correos.
 
