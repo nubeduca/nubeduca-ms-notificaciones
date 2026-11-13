@@ -166,7 +166,9 @@ sls deploy --stage dev
 ./scripts/suscribir_email.sh tu@correo.com <userId> dev
 ```
 
-Los nombres siguen a PLT-04 (`nubeduca-infra/bus`): bus `lms-<stage>` y tópico `nubeduca-<stage>-notas.fifo`. En la cuenta del despliegue final (REL-01) los crea ese stack, así que no se corre el paso 1.
+Los nombres siguen a PLT-04 (`infra/bus` de [`nubeduca-backend`](https://github.com/nubeduca/nubeduca-backend)): bus `lms-<stage>` y tópico `nubeduca-<stage>-notas.fifo`. En la cuenta de integración (D2) los crea ese stack y este servicio se despliega con `scripts/desplegar.sh` de ese repo, así que no se corre el paso 1.
+
+**Observabilidad (PLT-06):** X-Ray en API Gateway y Lambda, y una alarma de CloudWatch por cada DLQ (`nubeduca-<stage>-notificaciones-eventos-dlq` y `-notas-dlq`).
 
 > `nubeduca-contratos` todavía dice bus `lms` y tópico `<stage>-notas.fifo`. Si el equipo vuelve a esos nombres, basta con pasar los parámetros `busName` y `notasTopic`.
 
@@ -198,7 +200,7 @@ Las pruebas usan `moto` (no necesitan AWS) y cubren:
 - lotes con mensajes rotos;
 - la API: paginación, aislamiento por tenant y usuario, y los modos de auth.
 
-**Con LocalStack** (`nubeduca-infra/localstack`, que crea la tabla, la regla y las colas de este servicio):
+**Con LocalStack** (`nubeduca-backend/localstack`, que crea la tabla, la regla y las colas de este servicio):
 
 ```bash
 export AWS_ENDPOINT_URL=http://localhost:4566 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1
