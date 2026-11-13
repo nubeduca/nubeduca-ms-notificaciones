@@ -1,5 +1,5 @@
-# Cada integrante usa su propia org de Serverless (como ms-calificaciones); cámbiala si despliegas en otra cuenta.
-org: guillermoheredia
+# Sin `org:` fija: Serverless v4 toma la org de SERVERLESS_ACCESS_KEY (o de `serverless login`),
+# así el mismo archivo se despliega en la cuenta de integración (D2) o en la de cualquier integrante.
 service: nubeduca-ms-notificaciones
 
 provider:
@@ -11,6 +11,10 @@ provider:
   timeout: 20
   iam:
     role: arn:aws:iam::${aws:accountId}:role/LabRole
+  # PLT-06: trazas de API Gateway y Lambda en X-Ray.
+  tracing:
+    apiGateway: true
+    lambda: true
   environment:
     TABLA_NOTIFICACIONES: ${sls:stage}-t_notificaciones
     TOPIC_EMAIL: !Ref TopicEmail
@@ -207,6 +211,41 @@ resources:
               Condition:
                 ArnEquals:
                   aws:SourceArn: arn:aws:sns:${aws:region}:${aws:accountId}:${self:custom.notasTopic}
+
+    # PLT-06: alarma si algún mensaje termina en una DLQ (falló 5 veces).
+    AlarmaDLQEventos:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: nubeduca-${sls:stage}-notificaciones-eventos-dlq
+        AlarmDescription: Hay eventos del bus que ms-notificaciones no pudo procesar
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt ColaEventosDLQ.QueueName
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AlarmaDLQNotas:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: nubeduca-${sls:stage}-notificaciones-notas-dlq
+        AlarmDescription: Hay notas de la cola FIFO que ms-notificaciones no pudo procesar
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt ColaNotasDLQ.QueueName
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
 
     # URL de la API en SSM: PLT-06 (nubeduca-backend/infra/frontend) la pasa al frontend como VITE_API_NOTIFICACIONES.
     ParametroUrlApi:

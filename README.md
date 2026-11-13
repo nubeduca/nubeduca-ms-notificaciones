@@ -154,7 +154,7 @@ Colección de Postman: `postman/nubeduca-ms-notificaciones.postman_collection.js
 # 1. Solo en tu cuenta de pruebas: crea el bus lms-dev y el tópico nubeduca-dev-notas.fifo
 ./scripts/crear_recursos_dev.sh dev
 
-# 2. Verifica la org de Serverless en serverless.yml (org: guillermoheredia); cámbiala si usas otra cuenta
+# 2. Sin org fija: Serverless v4 usa la de SERVERLESS_ACCESS_KEY o la de `serverless login`
 sls deploy --stage dev
 #   con Cognito:            sls deploy --param="authMode=cognito"
 #   otra URL del frontend:  sls deploy --param="frontendUrl=https://..."
@@ -166,7 +166,9 @@ sls deploy --stage dev
 ./scripts/suscribir_email.sh tu@correo.com <userId> dev
 ```
 
-Los nombres siguen a PLT-04 (`nubeduca-infra/bus`): bus `lms-<stage>` y tópico `nubeduca-<stage>-notas.fifo`. En la cuenta del despliegue final (REL-01) los crea ese stack, así que no se corre el paso 1.
+Los nombres siguen a PLT-04 (`infra/bus` de [`nubeduca-backend`](https://github.com/nubeduca/nubeduca-backend)): bus `lms-<stage>` y tópico `nubeduca-<stage>-notas.fifo`. En la cuenta de integración (D2) los crea ese stack y este servicio se despliega con `scripts/desplegar.sh` de ese repo, así que no se corre el paso 1.
+
+**Observabilidad (PLT-06):** X-Ray en API Gateway y Lambda, y una alarma de CloudWatch por cada DLQ (`nubeduca-<stage>-notificaciones-eventos-dlq` y `-notas-dlq`).
 
 > `nubeduca-contratos` todavía dice bus `lms` y tópico `<stage>-notas.fifo`. Si el equipo vuelve a esos nombres, basta con pasar los parámetros `busName` y `notasTopic`.
 
@@ -178,7 +180,7 @@ python poblar_datos.py --stage dev                     # AWS
 python poblar_datos.py --endpoint-url http://localhost:4566 --tabla local-t_notificaciones   # LocalStack
 ```
 
-Carga 10.000 ítems por tenant (`utec`, `upc`, `pucp`): 1.000 preferencias y 9.000 avisos.
+Carga UTEC 15.000, UPC 10.000 y PUCP 5.000 ítems (`REPARTO`). En cada tenant, el 10 % son preferencias (90 % alumnos, 10 % docentes) y el 90 % son avisos en las bandejas de los alumnos. Por ejemplo, UTEC tiene 1.500 preferencias y 13.500 avisos.
 - Los ids son deterministas, así que correrlo dos veces no duplica nada.
 - No escribe ítems `INBOX` ni `EVENTO#`, así que no dispara eventos ni correos.
 
@@ -198,7 +200,7 @@ Las pruebas usan `moto` (no necesitan AWS) y cubren:
 - lotes con mensajes rotos;
 - la API: paginación, aislamiento por tenant y usuario, y los modos de auth.
 
-**Con LocalStack** (`nubeduca-infra/localstack`, que crea la tabla, la regla y las colas de este servicio):
+**Con LocalStack** (`nubeduca-backend/localstack`, que crea la tabla, la regla y las colas de este servicio):
 
 ```bash
 export AWS_ENDPOINT_URL=http://localhost:4566 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1

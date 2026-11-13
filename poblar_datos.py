@@ -1,7 +1,9 @@
 """
-Carga 30.000 registros ficticios en ${stage}-t_notificaciones: 10.000 por tenant.
+Carga 30.000 registros ficticios en ${stage}-t_notificaciones: UTEC 15.000, UPC 10.000 y PUCP 5.000
+(reparto acordado el 13 nov.).
 
-Por tenant: 1.000 preferencias de usuario + 9.000 avisos en las bandejas.
+Por tenant: 10 % preferencias de usuario (90 % alumnos, 10 % docentes) y 90 % avisos en las
+bandejas de los alumnos. UTEC: 1.500 preferencias + 13.500 avisos.
 No escribe ítems INBOX ni EVENTO#: cargar datos no dispara eventos ni correos.
 
 Uso:
@@ -17,9 +19,8 @@ from datetime import datetime, timedelta, timezone
 
 import boto3
 
-TENANTS = ("utec", "upc", "pucp")
-USUARIOS_POR_TENANT = 1_000  # 900 alumnos + 100 docentes (con preferencias)
-AVISOS_POR_TENANT = 9_000
+REPARTO = {"utec": 15_000, "upc": 10_000, "pucp": 5_000}
+TENANTS = tuple(REPARTO)
 CURSOS_POR_TENANT = 1_000
 ALFABETO = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -62,7 +63,10 @@ def uuid_usuario(tenant: str, n: int) -> str:
 def items_de_tenant(tenant: str):
     azar = random.Random(f"nubeduca-{tenant}")
     base = datetime(2026, 11, 10, 15, 0, tzinfo=timezone.utc)
-    usuarios = [uuid_usuario(tenant, n) for n in range(1, USUARIOS_POR_TENANT + 1)]
+    total = REPARTO[tenant]
+    cantidad_usuarios = total // 10
+    alumnos = cantidad_usuarios * 9 // 10  # el resto son docentes
+    usuarios = [uuid_usuario(tenant, n) for n in range(1, cantidad_usuarios + 1)]
     preferencias_por_usuario = {}
 
     for user_id in usuarios:
@@ -77,8 +81,8 @@ def items_de_tenant(tenant: str):
             "updatedAt": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
-    for n in range(AVISOS_POR_TENANT):
-        user_id = usuarios[n % 900]  # los avisos van a los 900 alumnos
+    for n in range(total - cantidad_usuarios):
+        user_id = usuarios[n % alumnos]  # los avisos van a los alumnos
         tipo, clave, plantilla = TIPOS[n % len(TIPOS)]
         momento = base - timedelta(minutes=7 * n + azar.randint(0, 6))
         created_at = momento.strftime("%Y-%m-%dT%H:%M:%SZ")
