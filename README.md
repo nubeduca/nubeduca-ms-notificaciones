@@ -172,6 +172,8 @@ Los nombres siguen a PLT-04 (`infra/bus` de [`nubeduca-backend`](https://github.
 
 > `nubeduca-contratos` todavía dice bus `lms` y tópico `<stage>-notas.fifo`. Si el equipo vuelve a esos nombres, basta con pasar los parámetros `busName` y `notasTopic`.
 
+**Learner Lab:** al terminar la sesión, AWS desactiva las conexiones cola → Lambda y los eventos se quedan en la cola. Al empezar cada sesión corre `./scripts/activar_colas.sh`. Si un evento no llega, `./scripts/diagnostico.sh` revisa la regla, las colas, la Lambda, los logs y los avisos.
+
 ## Datos de prueba (30.000 registros)
 
 ```bash

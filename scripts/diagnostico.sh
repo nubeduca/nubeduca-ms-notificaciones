@@ -39,6 +39,7 @@ echo "   dlq:     $(cola "nubeduca-${STAGE}-notificaciones-eventos-dlq")"
 echo "== Lambda $FUNCION conectada a la cola"
 aws lambda list-event-source-mappings --function-name "$FUNCION" \
   --query "EventSourceMappings[].[State,EventSourceArn]" --output text
+echo "   (si dice Disabled: ./scripts/activar_colas.sh)"
 
 echo "== Últimos logs del Lambda"
 aws logs tail "/aws/lambda/$FUNCION" --since 60m | tail -8
