@@ -44,6 +44,29 @@ echo "   (si dice Disabled: ./scripts/activar_colas.sh)"
 echo "== Últimos logs del Lambda"
 aws logs tail "/aws/lambda/$FUNCION" --since 60m | tail -8
 
+echo "== Correo: suscripciones del topic nubeduca-${STAGE}-notificaciones"
+TOPIC=$(aws sns list-topics \
+  --query "Topics[?ends_with(TopicArn, ':nubeduca-${STAGE}-notificaciones')].TopicArn" --output text)
+echo "   topic: $TOPIC"
+for SUB in $(aws sns list-subscriptions-by-topic --topic-arn "$TOPIC" \
+    --query "Subscriptions[].SubscriptionArn" --output text); do
+  if [ "$SUB" = "PendingConfirmation" ]; then
+    echo "   PENDIENTE de confirmar (abre el correo de AWS y haz clic en Confirm subscription)"
+    continue
+  fi
+  aws sns get-subscription-attributes --subscription-arn "$SUB" \
+    --query "Attributes.[Endpoint, FilterPolicy]" --output text
+done
+INI_SNS=$(date -u -d '-60 min' +%FT%TZ)
+for M in NumberOfMessagesPublished NumberOfNotificationsDelivered \
+         NumberOfNotificationsFilteredOut NumberOfNotificationsFailed; do
+  V=$(aws cloudwatch get-metric-statistics --namespace AWS/SNS --metric-name "$M" \
+    --dimensions Name=TopicName,Value="nubeduca-${STAGE}-notificaciones" \
+    --start-time "$INI_SNS" --end-time "$FIN" --period 3600 --statistics Sum \
+    --query "Datapoints[].Sum" --output text)
+  echo "   $M: ${V:-0}"
+done
+
 echo "== Avisos del usuario $USUARIO"
 URL=$(aws ssm get-parameter --name "/nubeduca/${STAGE}/api/notificaciones/url" \
   --query Parameter.Value --output text)
