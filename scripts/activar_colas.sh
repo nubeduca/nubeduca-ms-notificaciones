@@ -1,12 +1,13 @@
 #!/bin/bash
 # Reactiva las conexiones cola SQS -> Lambda que quedaron en Disabled.
 # El Learner Lab las desactiva al terminar la sesión; córrelo al empezar cada sesión.
-# Activa TODAS las de la cuenta (ms-notificaciones, ms-cursos, etc.).
+# Solo las de Nubeduca (Lambdas cuyo nombre empieza con "nubeduca-": ms-notificaciones, ms-cursos, etc.).
 #
 # Uso:  ./scripts/activar_colas.sh
 
 UUIDS=$(aws lambda list-event-source-mappings \
-  --query "EventSourceMappings[?State=='Disabled'].UUID" --output text)
+  --query "EventSourceMappings[?State=='Disabled' && contains(FunctionArn, ':function:nubeduca-')].UUID" \
+  --output text)
 
 if [ -z "$UUIDS" ]; then
   echo "Todas las conexiones ya están activas."
